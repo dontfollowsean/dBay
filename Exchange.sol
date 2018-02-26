@@ -54,11 +54,11 @@ contract Exchange is owned {
     // Manage Tokens
 
     function addToken(string symbolName, address erc20TokenAddress) onlyowner {
-        if (!hasToken(symbolName)) {
-            symbolNameIndex++;
-            tokens[symbolNameIndex].tokenContract = erc20TokenAddress;
-            tokens[symbolNameIndex].symbolName = symbolName;
-        }
+        require(!hasToken(symbolName));
+        symbolNameIndex++;
+        tokens[symbolNameIndex].tokenContract = erc20TokenAddress;
+        tokens[symbolNameIndex].symbolName = symbolName;
+        
     }
 
     function getSymbolIndex(string symbolName) internal returns (uint8) {
