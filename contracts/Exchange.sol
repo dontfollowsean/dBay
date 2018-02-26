@@ -59,13 +59,19 @@ contract Exchange is owned {
         
     }
 
-    function getSymbolIndex(string symbolName) view internal returns (uint8) {
+    function getSymbolIndex(string symbolName) internal view  returns (uint8) {
         for (uint8 i = 1; i <= symbolNameIndex; i++) {
             if (stringsEqual(tokens[i].symbolName, symbolName)) {
                 return i;
             }
         }
         return 0;
+    }
+
+    function getSymbolIndexOrThrow(string symbolName) internal view returns (uint8) {
+        uint8 index = getSymbolIndex(symbolName);
+        require(index > 0);
+        return index;
     }
 
     function hasToken(string symbolName) public constant returns (bool) {
@@ -77,7 +83,7 @@ contract Exchange is owned {
     }
 
     // String comparison
-    function stringsEqual(string storage _a, string memory _b) view internal returns (bool) {
+    function stringsEqual(string storage _a, string memory _b) internal view returns (bool) {
         // compare strings bit by bit
         bytes storage a = bytes(_a);
         bytes memory b = bytes(_b);
@@ -110,31 +116,31 @@ contract Exchange is owned {
     }
 
     // Token Deposits and Withdrawls
-    function withdrawToken (string symbolName, uint amount) {
-        uint8 symbolNameIndex = getSymbolIndex(symbolName);
-        require(tokens[symbolNameIndex].tokenContract != address(0));
+    function withdrawToken (string symbolName, uint amount)  public {
+        uint8 symbolNameIdx = getSymbolIndexOrThrow(symbolName);
+        require(tokens[symbolNameIdx].tokenContract != address(0));
 
-        ERC20Interface token = ERC20Interface(tokens[symbolNameIndex].tokenContract);
-        require(tokenBalanceForAddress[msg.sender][symbolNameIndex] - amount >= 0);
-        require(tokenBalanceForAddress[msg.sender][symbolNameIndex] - amount <= tokenBalanceForAddress[msg.sender][symbolNameIndex]);
+        ERC20Interface token = ERC20Interface(tokens[symbolNameIdx].tokenContract);
+        require(tokenBalanceForAddress[msg.sender][symbolNameIdx] - amount >= 0);
+        require(tokenBalanceForAddress[msg.sender][symbolNameIdx] - amount <= tokenBalanceForAddress[msg.sender][symbolNameIdx]);
         
-        tokenBalanceForAddress[msg.sender][symbolNameIndex] -= amount;
+        tokenBalanceForAddress[msg.sender][symbolNameIdx] -= amount;
         require(token.transfer(msg.sender, amount) == true);
     }
 
-    function depositToken(string symbolName, uint amount) {
-        uint8 symbolNameIndex = getSymbolIndex(symbolName);
-        require(tokens[symbolNameIndex].tokenContract != address(0));
+    function depositToken(string symbolName, uint amount) public {
+        uint8 symbolNameIdx = getSymbolIndexOrThrow(symbolName);
+        require(tokens[symbolNameIdx].tokenContract != address(0));
         
-        ERC20Interface token = ERC20Interface(tokens[symbolNameIndex].tokenContract);
+        ERC20Interface token = ERC20Interface(tokens[symbolNameIdx].tokenContract);
         
         require(token.transferFrom(msg.sender, address(this), amount) == true);
-        require(tokenBalanceForAddress[msg.sender][symbolNameIndex] + amount >= tokenBalanceForAddress[msg.sender][symbolNameIndex]); 
-        tokenBalanceForAddress[msg.sender][symbolNameIndex] += amount;
+        require(tokenBalanceForAddress[msg.sender][symbolNameIdx] + amount >= tokenBalanceForAddress[msg.sender][symbolNameIdx]); 
+        tokenBalanceForAddress[msg.sender][symbolNameIdx] += amount;
     }
 
-    function getBalance(string symbolName) constant returns (uint) {
-        uint8 symbolNameIndex = getSymbolIndex(symbolName);
-        return tokenBalanceForAddress[msg.sender][symbolNameIndex];
+    function getBalance(string symbolName) public constant returns (uint) {
+        uint8 symbolNameIdx = getSymbolIndexOrThrow(symbolName);
+        return tokenBalanceForAddress[msg.sender][symbolNameIdx];
     }
 }
