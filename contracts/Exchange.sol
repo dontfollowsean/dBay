@@ -51,7 +51,7 @@ contract Exchange is owned {
     mapping (address => uint) balanceEthForAddress;
 
     // Manage Tokens
-    function addToken(string symbolName, address erc20TokenAddress) public onlyowner {
+    function addToken(string symbolName, address erc20TokenAddress) public onlyOwner {
         require(!hasToken(symbolName));
         symbolNameIndex++;
         tokens[symbolNameIndex].tokenContract = erc20TokenAddress;

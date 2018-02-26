@@ -1,3 +1,4 @@
 chaindata/
 _*
 genesis.json
+build/
