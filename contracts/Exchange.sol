@@ -56,7 +56,8 @@ contract Exchange is owned {
         symbolNameIndex++;
         tokens[symbolNameIndex].tokenContract = erc20TokenAddress;
         tokens[symbolNameIndex].symbolName = symbolName;
-        
+        // now will give timestamp of the miner
+        TokenAddedToSystem(symbolNameIndex, symbolName, now);
     }
 
     function getSymbolIndex(string symbolName) internal view  returns (uint8) {
@@ -102,6 +103,7 @@ contract Exchange is owned {
     function depositEther() public payable {
         require(balanceEthForAddress[msg.sender] + msg.value >= balanceEthForAddress[msg.sender]);
         balanceEthForAddress[msg.sender] += msg.value;
+        DepositForEthReceived(msg.sender, msg.value, now);
     }
 
     function withdrawEther(uint amountInWei) public {
@@ -109,6 +111,7 @@ contract Exchange is owned {
         require(balanceEthForAddress[msg.sender] - amountInWei <= balanceEthForAddress[msg.sender]);
         balanceEthForAddress[msg.sender] -= amountInWei;
         msg.sender.transfer(amountInWei);
+        WithdrawalEth(msg.sender, amountInWei, now);
     }
 
     function getEthBalanceInWei() public constant returns (uint) {
@@ -126,6 +129,7 @@ contract Exchange is owned {
         
         tokenBalanceForAddress[msg.sender][symbolNameIdx] -= amount;
         require(token.transfer(msg.sender, amount) == true);
+        WithdrawalToken(msg.sender, symbolNameIndex, amount, now);
     }
 
     function depositToken(string symbolName, uint amount) public {
@@ -137,10 +141,22 @@ contract Exchange is owned {
         require(token.transferFrom(msg.sender, address(this), amount) == true);
         require(tokenBalanceForAddress[msg.sender][symbolNameIdx] + amount >= tokenBalanceForAddress[msg.sender][symbolNameIdx]); 
         tokenBalanceForAddress[msg.sender][symbolNameIdx] += amount;
+        DepositForTokenReceived(msg.sender, symbolNameIndex, amount, now);
+
     }
 
     function getBalance(string symbolName) public constant returns (uint) {
         uint8 symbolNameIdx = getSymbolIndexOrThrow(symbolName);
         return tokenBalanceForAddress[msg.sender][symbolNameIdx];
     }
+
+    // Events
+        // Token Management
+    event TokenAddedToSystem(uint _symbolIndex, string _token, uint _timestamp);
+        // Deposit/withdrawal
+    event DepositForTokenReceived(address indexed _from, uint indexed _symbolIndex, uint _amount, uint _timestamp);
+    event WithdrawalToken(address indexed _to, uint indexed _symbolIndex, uint _amount, uint _timestamp);
+    event DepositForEthReceived(address indexed _from, uint _amount, uint _timestamp);
+    event WithdrawalEth(address indexed _to, uint _amount, uint _timestamp);
+
 }

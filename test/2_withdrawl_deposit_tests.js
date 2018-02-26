@@ -11,7 +11,8 @@ contract('Exchange Basic Tests', function (accounts) {
         }).then(function (exchangeInstance) {
             myExchangeInstance = exchangeInstance;
             return myExchangeInstance.addToken("FIXED", myTokenInstance.address);
-        }).then(function () {
+        }).then(function (txResult) {
+            assert.equal(txResult.logs[0].event, "TokenAddedToSystem", "TokenAddedToSystem Event should be emmitted");
             return myExchangeInstance.hasToken.call("FIXED");
         }).then(function (booleanHasToken) {
             assert.equal(booleanHasToken, true, "The Token was not added");
