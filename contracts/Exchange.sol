@@ -5,7 +5,7 @@ import "./owned.sol";
 import "./FixedSupplyToken.sol";
 
 contract Exchange is owned {
-  struct Offer {
+    struct Offer {
         
         uint amount;
         address buyer;
@@ -53,7 +53,7 @@ contract Exchange is owned {
 
     // Manage Tokens
 
-    function addToken(string symbolName, address erc20TokenAddress) onlyowner {
+    function addToken(string symbolName, address erc20TokenAddress) public onlyowner {
         require(!hasToken(symbolName));
         symbolNameIndex++;
         tokens[symbolNameIndex].tokenContract = erc20TokenAddress;
@@ -61,7 +61,7 @@ contract Exchange is owned {
         
     }
 
-    function getSymbolIndex(string symbolName) internal returns (uint8) {
+    function getSymbolIndex(string symbolName) view internal returns (uint8) {
         for (uint8 i = 1; i <= symbolNameIndex; i++) {
             if (stringsEqual(tokens[i].symbolName, symbolName)) {
                 return i;
@@ -70,7 +70,7 @@ contract Exchange is owned {
         return 0;
     }
 
-    function hasToken(string symbolName) constant returns (bool) {
+    function hasToken(string symbolName) public constant returns (bool) {
         uint8 index = getSymbolIndex(symbolName);
         if (index == 0) {
             return false;
@@ -79,13 +79,13 @@ contract Exchange is owned {
     }
 
     // String comparison
-    function stringsEqual(string storage _a, string memory _b) internal returns (bool) {
-        // compares strings bit by bit
+    function stringsEqual(string storage _a, string memory _b) view internal returns (bool) {
+        // compare strings bit by bit
         bytes storage a = bytes(_a);
         bytes memory b = bytes(_b);
         if (a.length != b.length)
             return false;
-        // @TODO unroll this loop
+        // @TODO
         for (uint i = 0; i < a.length; i ++) {
             if (a[i] != b[i]) {
                 return false;
