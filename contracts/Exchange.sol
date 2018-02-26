@@ -5,21 +5,20 @@ import "./owned.sol";
 import "./FixedSupplyToken.sol";
 
 contract Exchange is owned {
+
     struct Offer {
-        
         uint amount;
         address buyer;
     }
 
-    struct OrderBook {
-        
+    struct OrderBook {   
         uint higherPrice;
         uint lowerPrice;
-        
+
         mapping (uint => Offer) offers;
         
-        uint offers_key;
-        uint offers_length;
+        uint offersKey;
+        uint offersLength;
     }
 
     struct Token {
@@ -52,7 +51,6 @@ contract Exchange is owned {
     mapping (address => uint) balanceEthForAddress;
 
     // Manage Tokens
-
     function addToken(string symbolName, address erc20TokenAddress) public onlyowner {
         require(!hasToken(symbolName));
         symbolNameIndex++;
@@ -93,4 +91,23 @@ contract Exchange is owned {
         }
         return true;
     }
+
+    // Ether Deposits and Withdrawls
+    function depositEther() public payable {
+        require(balanceEthForAddress[msg.sender] + msg.value >= balanceEthForAddress[msg.sender]);
+        balanceEthForAddress[msg.sender] += msg.value;
+    }
+
+    function withdrawEther(uint amountInWei) public {
+        require(balanceEthForAddress[msg.sender] - amountInWei >= 0);
+        require(balanceEthForAddress[msg.sender] - amountInWei <= balanceEthForAddress[msg.sender]);
+        balanceEthForAddress[msg.sender] -= amountInWei;
+        msg.sender.transfer(amountInWei);
+    }
+
+    function getEthBalanceInWei() public constant returns (uint) {
+        return balanceEthForAddress[msg.sender];
+    }
+
+
 }
