@@ -83,7 +83,7 @@ contract Exchange is owned {
         return true;
     }
 
-    // String comparison
+    // String comparison @TODO: put this function in an external contract or library
     function stringsEqual(string storage _a, string memory _b) internal view returns (bool) {
         // compare strings bit by bit
         bytes storage a = bytes(_a);
@@ -150,6 +150,97 @@ contract Exchange is owned {
         return tokenBalanceForAddress[msg.sender][symbolNameIdx];
     }
 
+    // New Bid Order
+    function buyToken(string symbolName, uint priceInWei, uint amount) public {
+        uint8 tokenNameIndex = getSymbolIndexOrThrow(symbolName);
+        uint totalEtherNeeded = 0;
+        // uint totalEtherAvailable = 0;
+
+        //if we have enough ether, we can buy that:
+        totalEtherNeeded = amount*priceInWei;
+
+        //overflow check
+        require(totalEtherNeeded >= amount);
+        require(totalEtherNeeded >= priceInWei);
+        require(balanceEthForAddress[msg.sender] >= totalEtherNeeded);
+        require(balanceEthForAddress[msg.sender] - totalEtherNeeded >= 0);
+
+        // first deduct the amount of ether from our balance
+        balanceEthForAddress[msg.sender] -= totalEtherNeeded;
+
+        if (tokens[tokenNameIndex].amountSellPrices == 0 || tokens[tokenNameIndex].curSellPrice > priceInWei) {
+            // not enough offers to fufill so create limit order
+            // add order to the orderBook
+            addBuyOffer(tokenNameIndex, priceInWei, amount, msg.sender);
+            LimitBuyOrderCreated(tokenNameIndex, msg.sender, amount, priceInWei, tokens[tokenNameIndex].buyBook[priceInWei].offersLength);
+        } else {
+            // sell price is less than current but price
+            revert(); // revert and throw exception
+        }
+    }
+
+    function addBuyOffer(uint8 tokenIndex, uint priceInWei, uint amount, address who) internal {
+        tokens[tokenIndex].buyBook[priceInWei].offersLength++;
+        tokens[tokenIndex].buyBook[priceInWei].offers[tokens[tokenIndex].buyBook[priceInWei].offersLength] = Offer(amount, who);
+
+        if (tokens[tokenIndex].buyBook[priceInWei].offersLength == 1) {
+            tokens[tokenIndex].buyBook[priceInWei].offersKey = 1;
+            // new buy order 
+            tokens[tokenIndex].amountBuyPrices++;
+
+
+            // set lowerPrice and higherPrice
+            uint curBuyPrice = tokens[tokenIndex].curBuyPrice;
+
+            uint lowestBuyPrice = tokens[tokenIndex].lowestBuyPrice;
+            if (lowestBuyPrice == 0 || lowestBuyPrice > priceInWei) {
+                if (curBuyPrice == 0) {
+                    // insert the first buy order
+                    tokens[tokenIndex].curBuyPrice = priceInWei;
+                    tokens[tokenIndex].buyBook[priceInWei].higherPrice = priceInWei;
+                    tokens[tokenIndex].buyBook[priceInWei].lowerPrice = 0;
+                } else {
+                    // lowest buy order
+                    tokens[tokenIndex].buyBook[lowestBuyPrice].lowerPrice = priceInWei;
+                    tokens[tokenIndex].buyBook[priceInWei].higherPrice = lowestBuyPrice;
+                    tokens[tokenIndex].buyBook[priceInWei].lowerPrice = 0;
+                }
+                tokens[tokenIndex].lowestBuyPrice = priceInWei;
+            } else if (curBuyPrice < priceInWei) {
+                // offer to buy is the highest one
+                tokens[tokenIndex].buyBook[curBuyPrice].higherPrice = priceInWei;
+                tokens[tokenIndex].buyBook[priceInWei].higherPrice = priceInWei;
+                tokens[tokenIndex].buyBook[priceInWei].lowerPrice = curBuyPrice;
+                tokens[tokenIndex].curBuyPrice = priceInWei;
+
+            } else {
+                // walk linkedlist
+                uint buyPrice = tokens[tokenIndex].curBuyPrice;
+                bool inPosition = false;
+                while (buyPrice > 0 && !inPosition) {
+                    if (
+                    buyPrice < priceInWei &&
+                    tokens[tokenIndex].buyBook[buyPrice].higherPrice > priceInWei
+                    ) {
+                        // set new order-book entry higher/lowerPrice first right
+                        tokens[tokenIndex].buyBook[priceInWei].lowerPrice = buyPrice;
+                        tokens[tokenIndex].buyBook[priceInWei].higherPrice = tokens[tokenIndex].buyBook[buyPrice].higherPrice;
+
+                        // set higherPrice order-book entries lowerPrice to current Price
+                        tokens[tokenIndex].buyBook[tokens[tokenIndex].buyBook[buyPrice].higherPrice].lowerPrice = priceInWei;
+                        // set lowerPrice order-book entries higherPrice to current Price
+                        tokens[tokenIndex].buyBook[buyPrice].higherPrice = priceInWei;
+
+                        inPosition = true;
+                    }
+                    buyPrice = tokens[tokenIndex].buyBook[buyPrice].lowerPrice;
+                }
+            }
+        }
+    }
+
+
+
     // Events
         // Token Management
     event TokenAddedToSystem(uint _symbolIndex, string _token, uint _timestamp);
@@ -158,5 +249,7 @@ contract Exchange is owned {
     event WithdrawalToken(address indexed _to, uint indexed _symbolIndex, uint _amount, uint _timestamp);
     event DepositForEthReceived(address indexed _from, uint _amount, uint _timestamp);
     event WithdrawalEth(address indexed _to, uint _amount, uint _timestamp);
+        // Orders
+    event LimitBuyOrderCreated(uint indexed _symbolIndex, address indexed _who, uint _amountTokens, uint _priceInWei, uint _orderKey);
 
 }
