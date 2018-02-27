@@ -83,14 +83,14 @@ contract Exchange is owned {
         return true;
     }
 
-    // String comparison @TODO: put this function in an external contract or library
+    // String comparison TODO: put this function in an external contract or library
     function stringsEqual(string storage _a, string memory _b) internal view returns (bool) {
         // compare strings bit by bit
         bytes storage a = bytes(_a);
         bytes memory b = bytes(_b);
         if (a.length != b.length)
             return false;
-        // @TODO
+        // TODO
         for (uint i = 0; i < a.length; i ++) {
             if (a[i] != b[i]) {
                 return false;
@@ -175,7 +175,7 @@ contract Exchange is owned {
             LimitBuyOrderCreated(tokenNameIndex, msg.sender, amount, priceInWei, tokens[tokenNameIndex].buyBook[priceInWei].offersLength);
         } else {
             // sell price is less than current but price
-            revert(); // revert and throw exception
+            revert(); // TODO
         }
     }
 
@@ -241,7 +241,7 @@ contract Exchange is owned {
     }
 
     // New Ask Order
-    function sellToken(string symbolName, uint priceInWei, uint amount) {
+    function sellToken(string symbolName, uint priceInWei, uint amount) public {
         uint8 tokenNameIndex = getSymbolIndexOrThrow(symbolName);
         uint totalEtherNeeded = 0;
         totalEtherNeeded = amount * priceInWei;
@@ -263,7 +263,7 @@ contract Exchange is owned {
             LimitSellOrderCreated(tokenNameIndex, msg.sender, amount, priceInWei, tokens[tokenNameIndex].sellBook[priceInWei].offersLength);
 
         } else {
-            revert();
+            revert(); // TODO
         }
     }
 
@@ -332,7 +332,42 @@ contract Exchange is owned {
         }
     }
 
+    // Buy order book
+    function getBuyOrderBook(string symbolName) public constant returns (uint[], uint[]) {
+        uint8 tokenNameIndex = getSymbolIndexOrThrow(symbolName);
+        uint[] memory arrPricesBuy = new uint[](tokens[tokenNameIndex].amountBuyPrices);
+        uint[] memory arrVolumesBuy = new uint[](tokens[tokenNameIndex].amountBuyPrices);
 
+        uint whilePrice = tokens[tokenNameIndex].lowestBuyPrice;
+        uint counter = 0;
+        if (tokens[tokenNameIndex].curBuyPrice > 0) {
+            while (whilePrice <= tokens[tokenNameIndex].curBuyPrice) {
+                arrPricesBuy[counter] = whilePrice;
+                uint volumeAtPrice = 0;
+                uint offersKey = 0;
+
+                offersKey = tokens[tokenNameIndex].buyBook[whilePrice].offersKey;
+                while (offersKey <= tokens[tokenNameIndex].buyBook[whilePrice].offersLength) {
+                    volumeAtPrice += tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].amount;
+                    offersKey++;
+                }
+
+                arrVolumesBuy[counter] = volumeAtPrice;
+
+                //next whilePrice
+                if (whilePrice == tokens[tokenNameIndex].buyBook[whilePrice].higherPrice) {
+                    break;
+                } else {
+                    whilePrice = tokens[tokenNameIndex].buyBook[whilePrice].higherPrice;
+                }
+                counter++;
+
+            }
+        }
+
+        return (arrPricesBuy, arrVolumesBuy);
+
+    }
     // Events
         // Token Management
     event TokenAddedToSystem(uint _symbolIndex, string _token, uint _timestamp);
