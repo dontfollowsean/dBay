@@ -43,7 +43,7 @@ contract('Exchange Basic Tests', function (accounts) {
         });
     });
 
-    it("should be possible to withdraw token", function () {
+    it("should be able to withdraw token", function () {
         var myExchangeInstance;
         var myTokenInstance;
         var balancedTokenInExchangeBeforeWithdrawal;

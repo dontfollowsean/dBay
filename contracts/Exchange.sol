@@ -338,27 +338,27 @@ contract Exchange is owned {
         uint[] memory arrPricesBuy = new uint[](tokens[tokenNameIndex].amountBuyPrices);
         uint[] memory arrVolumesBuy = new uint[](tokens[tokenNameIndex].amountBuyPrices);
 
-        uint whilePrice = tokens[tokenNameIndex].lowestBuyPrice;
+        uint buyPrice = tokens[tokenNameIndex].lowestBuyPrice;
         uint counter = 0;
         if (tokens[tokenNameIndex].curBuyPrice > 0) {
-            while (whilePrice <= tokens[tokenNameIndex].curBuyPrice) {
-                arrPricesBuy[counter] = whilePrice;
+            while (buyPrice <= tokens[tokenNameIndex].curBuyPrice) {
+                arrPricesBuy[counter] = buyPrice;
                 uint volumeAtPrice = 0;
                 uint offersKey = 0;
 
-                offersKey = tokens[tokenNameIndex].buyBook[whilePrice].offersKey;
-                while (offersKey <= tokens[tokenNameIndex].buyBook[whilePrice].offersLength) {
-                    volumeAtPrice += tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].amount;
+                offersKey = tokens[tokenNameIndex].buyBook[buyPrice].offersKey;
+                while (offersKey <= tokens[tokenNameIndex].buyBook[buyPrice].offersLength) {
+                    volumeAtPrice += tokens[tokenNameIndex].buyBook[buyPrice].offers[offersKey].amount;
                     offersKey++;
                 }
 
                 arrVolumesBuy[counter] = volumeAtPrice;
 
-                //next whilePrice
-                if (whilePrice == tokens[tokenNameIndex].buyBook[whilePrice].higherPrice) {
+                //next buyPrice
+                if (buyPrice == tokens[tokenNameIndex].buyBook[buyPrice].higherPrice) {
                     break;
                 } else {
-                    whilePrice = tokens[tokenNameIndex].buyBook[whilePrice].higherPrice;
+                    buyPrice = tokens[tokenNameIndex].buyBook[buyPrice].higherPrice;
                 }
                 counter++;
 
@@ -368,6 +368,40 @@ contract Exchange is owned {
         return (arrPricesBuy, arrVolumesBuy);
 
     }
+
+    // Sell order book
+    function getSellOrderBook(string symbolName) public constant returns (uint[], uint[]) {
+        uint8 tokenNameIndex = getSymbolIndexOrThrow(symbolName);        
+        uint[] memory arrPricesSell = new uint[](tokens[tokenNameIndex].amountSellPrices);
+        uint[] memory arrVolumesSell = new uint[](tokens[tokenNameIndex].amountSellPrices);
+
+        uint sellPrice = tokens[tokenNameIndex].curSellPrice;
+        uint counter = 0;
+        if (tokens[tokenNameIndex].curSellPrice > 0) {
+            while (sellPrice <= tokens[tokenNameIndex].highestSellPrice) {
+                arrPricesSell[counter] = sellPrice;
+                uint sellVolumeAtPrice = 0;
+                uint sellOffersKey = 0;
+                sellOffersKey = tokens[tokenNameIndex].sellBook[sellPrice].offersKey;
+                    while (sellOffersKey <= tokens[tokenNameIndex].sellBook[sellPrice].offersLength) {
+                        sellVolumeAtPrice += tokens[tokenNameIndex].sellBook[sellPrice].offers[sellOffersKey].amount;
+                        sellOffersKey++;
+                    }
+
+                    arrVolumesSell[counter] = sellVolumeAtPrice;
+
+                    //next whilePrice
+                    if (tokens[tokenNameIndex].sellBook[sellPrice].higherPrice == 0) {
+                        break;
+                    } else {
+                        sellPrice = tokens[tokenNameIndex].sellBook[sellPrice].higherPrice;
+                    }
+                    counter++;
+            } 
+        }
+        return (arrPricesSell, arrVolumesSell);
+    }
+
     // Events
         // Token Management
     event TokenAddedToSystem(uint _symbolIndex, string _token, uint _timestamp);
