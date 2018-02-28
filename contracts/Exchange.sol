@@ -8,7 +8,7 @@ contract Exchange is owned {
 
     struct Offer {
         uint amount;
-        address buyer;
+        address who;
     }
 
     struct OrderBook {   
@@ -402,6 +402,33 @@ contract Exchange is owned {
         return (arrPricesSell, arrVolumesSell);
     }
 
+    // cancel an order
+    function cancelOrder(string symbolName, bool isSellOrder, uint priceInWei, uint offerKey) public {
+        uint8 symbolNameIdx = getSymbolIndexOrThrow(symbolName);
+        if (isSellOrder) {
+            // can only cancel your own orders
+            require(tokens[symbolNameIdx].sellBook[priceInWei].offers[offerKey].who == msg.sender);
+            // give refund
+            uint tokensAmount = tokens[symbolNameIdx].sellBook[priceInWei].offers[offerKey].amount;
+            // overflow check
+            require(tokenBalanceForAddress[msg.sender][symbolNameIdx] + tokensAmount >= tokenBalanceForAddress[msg.sender][symbolNameIdx]);
+            tokenBalanceForAddress[msg.sender][symbolNameIdx] += tokensAmount;
+            tokens[symbolNameIdx].sellBook[priceInWei].offers[offerKey].amount = 0;
+            SellOrderCanceled(symbolNameIdx, priceInWei, offerKey);
+
+        } else {
+            // only cancel your own order
+            require(tokens[symbolNameIdx].buyBook[priceInWei].offers[offerKey].who == msg.sender);
+            // give refund
+            uint etherToRefund = tokens[symbolNameIdx].buyBook[priceInWei].offers[offerKey].amount * priceInWei;
+            // overflow check
+            require(balanceEthForAddress[msg.sender] + etherToRefund >= balanceEthForAddress[msg.sender]);
+            balanceEthForAddress[msg.sender] += etherToRefund;
+            tokens[symbolNameIdx].buyBook[priceInWei].offers[offerKey].amount = 0;
+            BuyOrderCanceled(symbolNameIdx, priceInWei, offerKey);
+        }
+    }
+
     // Events
         // Token Management
     event TokenAddedToSystem(uint _symbolIndex, string _token, uint _timestamp);
@@ -410,8 +437,11 @@ contract Exchange is owned {
     event WithdrawalToken(address indexed _to, uint indexed _symbolIndex, uint _amount, uint _timestamp);
     event DepositForEthReceived(address indexed _from, uint _amount, uint _timestamp);
     event WithdrawalEth(address indexed _to, uint _amount, uint _timestamp);
-        // Orders
+        // Create Orders
     event LimitBuyOrderCreated(uint indexed _symbolIndex, address indexed _who, uint _amountTokens, uint _priceInWei, uint _orderKey);
     event LimitSellOrderCreated(uint indexed _symbolIndex, address indexed _who, uint _amountTokens, uint _priceInWei, uint _orderKey);
+        // Cancel Orders
+    event SellOrderCanceled(uint indexed _symbolIndex, uint _priceInWei, uint _orderKey);
+    event BuyOrderCanceled(uint indexed _symbolIndex, uint _priceInWei, uint _orderKey);
 
 }
