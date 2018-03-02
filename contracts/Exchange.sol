@@ -153,20 +153,20 @@ contract Exchange is owned {
     // New Bid Order
     function buyToken(string symbolName, uint priceInWei, uint amount) public {
         uint8 tokenNameIndex = getSymbolIndexOrThrow(symbolName);
-        uint totalEtherNeeded = 0;
+        uint totalEthNeeded = 0;
         // uint totalEtherAvailable = 0;
 
         //if we have enough ether, we can buy that:
-        totalEtherNeeded = amount*priceInWei;
+        totalEthNeeded = amount*priceInWei;
 
         //overflow check
-        require(totalEtherNeeded >= amount);
-        require(totalEtherNeeded >= priceInWei);
-        require(balanceEthForAddress[msg.sender] >= totalEtherNeeded);
-        require(balanceEthForAddress[msg.sender] - totalEtherNeeded >= 0);
+        require(totalEthNeeded >= amount);
+        require(totalEthNeeded >= priceInWei);
+        require(balanceEthForAddress[msg.sender] >= totalEthNeeded);
+        require(balanceEthForAddress[msg.sender] - totalEthNeeded >= 0);
 
         // first deduct the amount of ether from our balance
-        balanceEthForAddress[msg.sender] -= totalEtherNeeded;
+        balanceEthForAddress[msg.sender] -= totalEthNeeded;
 
         if (tokens[tokenNameIndex].amountSellPrices == 0 || tokens[tokenNameIndex].curSellPrice > priceInWei) {
             // not enough offers to fufill so create limit order
@@ -174,8 +174,74 @@ contract Exchange is owned {
             addBuyOffer(tokenNameIndex, priceInWei, amount, msg.sender);
             LimitBuyOrderCreated(tokenNameIndex, msg.sender, amount, priceInWei, tokens[tokenNameIndex].buyBook[priceInWei].offersLength);
         } else {
-            // sell price is less than current but price
-            revert(); // TODO
+            uint totalEthAvailable = 0;
+            uint whilePrice = tokens[tokenNameIndex].curSellPrice;
+            uint amountNecessary = amount;
+            uint offersKey;
+            while (whilePrice <= priceInWei && amountNecessary > 0) {
+                offersKey = tokens[tokenNameIndex].sellBook[whilePrice].offersKey;
+                while (offersKey <= tokens[tokenNameIndex].sellBook[whilePrice].offersLength && amountNecessary > 0) {// FIFO
+                    uint volumeAtPriceFromAddress = tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].amount;
+                    if (volumeAtPriceFromAddress <= amountNecessary) {
+                        totalEthAvailable = volumeAtPriceFromAddress * whilePrice;
+
+                        require(balanceEthForAddress[msg.sender] >= totalEthAvailable);
+                        require(balanceEthForAddress[msg.sender] - totalEthAvailable <= balanceEthForAddress[msg.sender]);
+
+                        balanceEthForAddress[msg.sender] -= totalEthAvailable;
+
+                        require(tokenBalanceForAddress[msg.sender][tokenNameIndex] + volumeAtPriceFromAddress >= tokenBalanceForAddress[msg.sender][tokenNameIndex]);
+                        require(balanceEthForAddress[tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].who] + totalEthAvailable >= balanceEthForAddress[tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].who]);
+
+                        tokenBalanceForAddress[msg.sender][tokenNameIndex] += volumeAtPriceFromAddress;
+                        tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].amount = 0;
+                        balanceEthForAddress[tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].who] += totalEthAvailable;
+                        tokens[tokenNameIndex].sellBook[whilePrice].offersKey++;
+
+                        SellOrderFulfilled(tokenNameIndex, volumeAtPriceFromAddress, whilePrice, offersKey);
+
+                        amountNecessary -= volumeAtPriceFromAddress;
+                    } else {
+                        require(tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].amount > amountNecessary);//sanity
+
+                        totalEthNeeded = amountNecessary * whilePrice;
+                        require(balanceEthForAddress[msg.sender] - totalEthNeeded <= balanceEthForAddress[msg.sender]);
+
+
+                        balanceEthForAddress[msg.sender] -= totalEthNeeded;
+
+                        require(balanceEthForAddress[tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].who] + totalEthNeeded >= balanceEthForAddress[tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].who]);
+
+                        tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].amount -= amountNecessary;
+                        balanceEthForAddress[tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].who] += totalEthNeeded;
+                        tokenBalanceForAddress[msg.sender][tokenNameIndex] += amountNecessary;
+
+                        amountNecessary = 0;
+                        //we have fulfilled our order
+                        SellOrderFulfilled(tokenNameIndex, amountNecessary, whilePrice, offersKey);
+                    }
+
+                    if (offersKey == tokens[tokenNameIndex].sellBook[whilePrice].offersLength && tokens[tokenNameIndex].sellBook[whilePrice].offers[offersKey].amount == 0) {
+
+                        tokens[tokenNameIndex].amountSellPrices--;
+                        if (whilePrice == tokens[tokenNameIndex].sellBook[whilePrice].higherPrice || tokens[tokenNameIndex].buyBook[whilePrice].higherPrice == 0) {
+                            tokens[tokenNameIndex].curSellPrice = 0;
+                            // got to price
+                        } else {
+                            tokens[tokenNameIndex].curSellPrice = tokens[tokenNameIndex].sellBook[whilePrice].higherPrice;
+                            tokens[tokenNameIndex].sellBook[tokens[tokenNameIndex].buyBook[whilePrice].higherPrice].lowerPrice = 0;
+                        }
+                    }
+                    offersKey++;
+                }
+
+                whilePrice = tokens[tokenNameIndex].curSellPrice;
+            }
+
+            if (amountNecessary > 0) {
+                buyToken(symbolName, priceInWei, amountNecessary);
+                // add limit order
+            }
         }
     }
 
@@ -243,27 +309,98 @@ contract Exchange is owned {
     // New Ask Order
     function sellToken(string symbolName, uint priceInWei, uint amount) public {
         uint8 tokenNameIndex = getSymbolIndexOrThrow(symbolName);
-        uint totalEtherNeeded = 0;
-        totalEtherNeeded = amount * priceInWei;
+        uint totalEthAvailable = 0;
+        uint totalEthNeeded = 0;
+
+        if (tokens[tokenNameIndex].amountBuyPrices == 0 || tokens[tokenNameIndex].curBuyPrice < priceInWei) {
+
+        totalEthNeeded = amount * priceInWei;
 
         // overflow check
-        require(totalEtherNeeded >= amount);
-        require(totalEtherNeeded >= priceInWei);
+        require(totalEthNeeded >= amount);
+        require(totalEthNeeded >= priceInWei);
         require(tokenBalanceForAddress[msg.sender][tokenNameIndex] >= amount);
         require(tokenBalanceForAddress[msg.sender][tokenNameIndex] - amount >= 0);
-        require(balanceEthForAddress[msg.sender] + totalEtherNeeded >= balanceEthForAddress[msg.sender]);
+        require(balanceEthForAddress[msg.sender] + totalEthNeeded >= balanceEthForAddress[msg.sender]);
 
         tokenBalanceForAddress[msg.sender][tokenNameIndex] -= amount;
 
-        if (tokens[tokenNameIndex].amountBuyPrices == 0 || tokens[tokenNameIndex].curBuyPrice < priceInWei) {
-            // not enough offers to fulfill the amount
 
             // add order to orderBook
             addSellOffer(tokenNameIndex, priceInWei, amount, msg.sender);
             LimitSellOrderCreated(tokenNameIndex, msg.sender, amount, priceInWei, tokens[tokenNameIndex].sellBook[priceInWei].offersLength);
 
         } else {
-            revert(); // TODO
+            uint whilePrice = tokens[tokenNameIndex].curBuyPrice;
+            uint amountNecessary = amount;
+            uint offersKey;
+            while (whilePrice >= priceInWei && amountNecessary > 0) {
+                offersKey = tokens[tokenNameIndex].buyBook[whilePrice].offersKey;
+                while (offersKey <= tokens[tokenNameIndex].buyBook[whilePrice].offersLength && amountNecessary > 0) {// FIFO
+                    uint volumeAtPriceFromAddress = tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].amount;
+
+                    if (volumeAtPriceFromAddress <= amountNecessary) {
+                        totalEthAvailable = volumeAtPriceFromAddress * whilePrice;
+
+
+                        require(tokenBalanceForAddress[msg.sender][tokenNameIndex] >= volumeAtPriceFromAddress);
+                        // subtract amount of tokens 
+                        tokenBalanceForAddress[msg.sender][tokenNameIndex] -= volumeAtPriceFromAddress;
+
+                        require(tokenBalanceForAddress[msg.sender][tokenNameIndex] - volumeAtPriceFromAddress >= 0);
+                        require(tokenBalanceForAddress[tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].who][tokenNameIndex] + volumeAtPriceFromAddress >= tokenBalanceForAddress[tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].who][tokenNameIndex]);
+                        require(balanceEthForAddress[msg.sender] + totalEthAvailable >= balanceEthForAddress[msg.sender]);
+
+                        tokenBalanceForAddress[tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].who][tokenNameIndex] += volumeAtPriceFromAddress;
+                        tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].amount = 0;
+                        balanceEthForAddress[msg.sender] += totalEthAvailable;
+                        tokens[tokenNameIndex].buyBook[whilePrice].offersKey++;
+                        SellOrderFulfilled(tokenNameIndex, volumeAtPriceFromAddress, whilePrice, offersKey);
+
+
+                        amountNecessary -= volumeAtPriceFromAddress;
+                    } else {
+                        require(volumeAtPriceFromAddress - amountNecessary > 0);
+                        totalEthNeeded = amountNecessary * whilePrice;
+
+                        require(tokenBalanceForAddress[msg.sender][tokenNameIndex] >= amountNecessary);
+                        tokenBalanceForAddress[msg.sender][tokenNameIndex] -= amountNecessary;
+
+                        require(tokenBalanceForAddress[msg.sender][tokenNameIndex] >= amountNecessary);
+                        require(balanceEthForAddress[msg.sender] + totalEthNeeded >= balanceEthForAddress[msg.sender]);
+                        require(tokenBalanceForAddress[tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].who][tokenNameIndex] + amountNecessary >= tokenBalanceForAddress[tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].who][tokenNameIndex]);
+
+                        tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].amount -= amountNecessary;
+                        balanceEthForAddress[msg.sender] += totalEthNeeded;
+                        tokenBalanceForAddress[tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].who][tokenNameIndex] += amountNecessary;
+
+                        SellOrderFulfilled(tokenNameIndex, amountNecessary, whilePrice, offersKey);
+
+                        amountNecessary = 0;
+                        // fulfilled order
+                    }
+
+                    if ( offersKey == tokens[tokenNameIndex].buyBook[whilePrice].offersLength && tokens[tokenNameIndex].buyBook[whilePrice].offers[offersKey].amount == 0) {
+
+                        tokens[tokenNameIndex].amountBuyPrices--;
+
+                        if (whilePrice == tokens[tokenNameIndex].buyBook[whilePrice].lowerPrice || tokens[tokenNameIndex].buyBook[whilePrice].lowerPrice == 0) {
+                            tokens[tokenNameIndex].curBuyPrice = 0;
+                        } else {
+                            tokens[tokenNameIndex].curBuyPrice = tokens[tokenNameIndex].buyBook[whilePrice].lowerPrice;
+                            tokens[tokenNameIndex].buyBook[tokens[tokenNameIndex].buyBook[whilePrice].lowerPrice].higherPrice = tokens[tokenNameIndex].curBuyPrice;
+                        }
+                    }
+                    offersKey++;
+                }
+
+                whilePrice = tokens[tokenNameIndex].curBuyPrice;
+            }
+
+            if (amountNecessary > 0) {
+                sellToken(symbolName, priceInWei, amountNecessary);
+                //add a limit order.  couldn't fulfill all orders
+            }       
         }
     }
 
@@ -443,5 +580,7 @@ contract Exchange is owned {
         // Cancel Orders
     event SellOrderCanceled(uint indexed _symbolIndex, uint _priceInWei, uint _orderKey);
     event BuyOrderCanceled(uint indexed _symbolIndex, uint _priceInWei, uint _orderKey);
+        // fufilled orders
+    event SellOrderFulfilled(uint indexed _symbolIndex, uint _amount, uint _priceInWei, uint _orderKey);
 
 }
