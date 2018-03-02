@@ -150,7 +150,7 @@ contract Exchange is owned {
         return tokenBalanceForAddress[msg.sender][symbolNameIdx];
     }
 
-    // New Bid Order
+    // Bid Orders TODO Write tests for market orders!!!
     function buyToken(string symbolName, uint priceInWei, uint amount) public {
         uint8 tokenNameIndex = getSymbolIndexOrThrow(symbolName);
         uint totalEthNeeded = 0;
@@ -406,7 +406,7 @@ contract Exchange is owned {
 
 
 
-    // Ask limit order
+    // Ask orders. TODO Right tests for market orders!!! 
     function addSellOffer(uint8 tokenIndex, uint priceInWei, uint amount, address who) internal {
         tokens[tokenIndex].sellBook[priceInWei].offersLength++;
         tokens[tokenIndex].sellBook[priceInWei].offers[tokens[tokenIndex].sellBook[priceInWei].offersLength] = Offer(amount, who);
