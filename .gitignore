@@ -1,5 +1,4 @@
 chaindata/
 _*
 genesis.json
-build/
 node_modules/
