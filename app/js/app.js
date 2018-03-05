@@ -107,6 +107,31 @@ window.App = {
     });
   },  
 
+  printImportantInformation: function () {
+    //TODO 
+  },
+
+  allowanceToken: function () {
+    var self = this;
+
+    var amount = parseInt(document.getElementById("inputAmountAllowanceToken").value);
+    var receiver = document.getElementById("inputBeneficiaryAllowanceToken").value;
+
+    this.setStatus("Initiating transaction... (please wait)");
+
+    var tokenInstance;
+    return TokenContract.deployed().then(function (instance) {
+      tokenInstance = instance;
+      return tokenInstance.approve(receiver, amount, {from: account});
+    }).then(function () {
+      self.setStatus("Transaction complete!");
+      App.updateTokenBalance();
+    }).catch(function (e) {
+      console.log(e);
+      self.setStatus("Error sending coin; see log.");
+    });;
+
+  },
   initManageToken: function () {
     App.updateTokenBalance();
     App.watchTokenEvents();
