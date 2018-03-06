@@ -88,6 +88,7 @@ window.App = {
   },
 
   sendToken: function () {
+    var self = this;
 
     var amount = parseInt(document.getElementById("inputAmountSendToken").value);
     var receiver = document.getElementById("inputBeneficiarySendToken").value;
@@ -132,6 +133,21 @@ window.App = {
     });;
 
   },
+
+  addTokenToExchange: function () {
+    var nameOfToken = document.getElementById("inputNameTokenAddExchange").value;
+    var addressOfToken = document.getElementById("inputAddressTokenAddExchange").value;
+    ExchangeContract.deployed().then(function (instance) {
+      return instance.addToken(nameOfToken, addressOfToken, { from: account });
+    }).then(function (txResult) {
+      console.log(txResult);
+      App.setStatus("Token added");
+    }).catch(function (e) {
+      console.log(e);
+      App.setStatus("Error getting balance; see log.");
+    });
+  },
+
   initManageToken: function () {
     App.updateTokenBalance();
     App.watchTokenEvents();

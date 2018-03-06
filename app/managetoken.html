@@ -96,6 +96,28 @@
     
                     </div>
                 </div>
+
+                <br>
+                <div class="panel panel-default">
+                    <div class="panel-heading">Add Token to Exchange</div>
+                    <div class="panel-body">
+                        <form>
+                            <div class="form-group">
+                                <label for="inputNameTokenAddExchange">Name of the Token</label>
+                                <input type="text" name="inputNameTokenAddExchange" class="form-control" id="inputNameTokenAddExchange" placeholder="FIXED">
+                            </div>
+                            <div class="form-group">
+                                <label for="inputAddressTokenAddExchange">Address of Token</label>
+                                <input type="text" class="form-control" id="inputAddressTokenAddExchange" name="inputAddressTokenAddExchange" placeholder="e.g. 0x123ABde44...">
+                            </div>
+                            <button type="button" class="btn btn-default" onclick="App.addTokenToExchange();return false;">
+                                Add Token to Exchange
+                            </button>
+                        </form>
+
+                    </div>
+                </div>
+
             </div>
     
     
