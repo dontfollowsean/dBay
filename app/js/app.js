@@ -46,8 +46,8 @@ window.App = {
       tokenInstance = instance;
       return tokenInstance.balanceOf.call(account);
     }).then(function (value) {
-      var balance_element = document.getElementById("tokenBalance");
-      balance_element.innerHTML = value.valueOf();
+      var balanceElement = document.getElementById("tokenBalance");
+      balanceElement.innerHTML = value.valueOf();
     }).catch(function (e) {
       console.log(e);
       App.setStatus("Error getting balance; see log.");
@@ -108,9 +108,34 @@ window.App = {
     });
   },  
 
-  printImportantInformation: function () {
-    //TODO 
-  },
+  printInfo: function () {
+    ExchangeContract.deployed().then(function (instance) {
+      var divAddress = document.createElement("div");
+      divAddress.appendChild(document.createTextNode("Address Exchange: " + instance.address));
+      divAddress.setAttribute("class", "alert alert-info");
+      document.getElementById("importantInformation").appendChild(divAddress);
+    });
+    TokenContract.deployed().then(function (instance) {
+      var divAddress = document.createElement("div");
+      divAddress.appendChild(document.createTextNode("Address Token: " + instance.address));
+      divAddress.setAttribute("class", "alert alert-info");
+      document.getElementById("importantInformation").appendChild(divAddress);
+    });
+
+    web3.eth.getAccounts(function (err, accs) {
+      web3.eth.getBalance(accs[0], function (err1, balance) {
+        var divAddress = document.createElement("div");
+        var div = document.createElement("div");
+        div.appendChild(document.createTextNode("Active Account: " + accs[0]));
+        var div2 = document.createElement("div");
+        div2.appendChild(document.createTextNode("Balance in Ether: " + web3.fromWei(balance, "ether")));
+        divAddress.appendChild(div);
+        divAddress.appendChild(div2);
+        divAddress.setAttribute("class", "alert alert-info");
+        document.getElementById("importantInformation").appendChild(divAddress);
+      });
+
+    });  },
 
   allowanceToken: function () {
     var self = this;
@@ -151,9 +176,36 @@ window.App = {
   initManageToken: function () {
     App.updateTokenBalance();
     App.watchTokenEvents();
-    App.printImportantInformation();
+    App.printInfo();
   },
-  
+
+  refreshBalance: function () {
+    //TODO right now only works with FixedSupplyToken. should be updated to support tokens dynamically
+    var self = this;
+
+    var exchangeInstance;
+    ExchangeContract.deployed().then(function (instance) {
+      exchangeInstance = instance;
+      return exchangeInstance.getBalance("FIXED");
+    }).then(function (value) {
+      var balanceElement = document.getElementById("balanceTokenInExchange");
+      balanceElement.innerHTML = value.toNumber();
+      return exchangeInstance.getEthBalanceInWei();
+    }).then(function (value) {
+      var balanceElement = document.getElementById("balanceEtherInExchange");
+      balanceElement.innerHTML = web3.fromWei(value, "ether");
+    }).catch(function (e) {
+      console.log(e);
+      self.setStatus("Error getting balance; see log.");
+    });
+  },
+
+  initExchange: function () {
+    // TODO line 190 gives invalid JSON RPC response
+    // App.refreshBalance();
+    App.watchExchangeEvents();
+    App.printInfo();
+  },
 };
 
 window.addEventListener('load', function () {
